@@ -1,3 +1,3 @@
-module spresso-adk-go
+module spresso-sdk-go
 
 go 1.17
