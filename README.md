@@ -1,2 +1,2 @@
-# -spresso-sdk-go
+# spresso-sdk-go
 Spresso Golang SDK
