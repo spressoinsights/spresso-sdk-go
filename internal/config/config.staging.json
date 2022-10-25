@@ -1,0 +1,14 @@
+{
+  "asset_cdn": {
+    "uri": "https://boxed-assets-staging-gcp.boxed.com"
+  },
+  "catalog_service_uri": "https://iap-catalog.sprs-298.us-east4.staging.spresso.com",
+  "https": true,
+	"auth0ProviderOptions": {
+		"domain": "dev-369tg5rm.us.auth0.com",
+		"clientId": "H0WbZlu7J8OAXq2nzBavTWDZxThKjCXq",
+		"cacheLocation": "localstorage",
+		"audience": "https://spresso-api",
+		"scope": "read:current_user update:current_user_metadata"
+	}
+}

@@ -1,0 +1,14 @@
+{
+  "asset_cdn": {
+    "uri": "https://static-assets.boxed.com"
+  },
+  "catalog_service_uri": "https://public-catalog.us-east4.prod.spresso.com",
+  "https": true,
+	"auth0ProviderOptions": {
+		"domain": "auth.spresso.com",
+		"clientId": "SWthB5OROefRjiMG3juzLP8uJIlzKwso",
+		"cacheLocation": "localstorage",
+		"audience": "https://spresso-api",
+		"scope": "read:current_user update:current_user_metadata"
+	}
+}
