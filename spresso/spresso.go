@@ -54,7 +54,7 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 		ao = *config.AuthOverride
 	}
 
-	return &App{
+	return &Client{
 		authOverride:     ao,
 		dbURL:            config.DatabaseURL,
 		projectID:        pid,
