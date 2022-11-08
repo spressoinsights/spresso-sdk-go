@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/spressoinsights/spresso-sdk-go/auth"
 	"github.com/spressoinsights/spresso-sdk-go/config"
 )
 
