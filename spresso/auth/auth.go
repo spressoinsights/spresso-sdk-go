@@ -1,13 +1,16 @@
 package auth
 
 import (
-	"log"
+	"encoding/json"
 	"spresso-sdk-go/spresso/http_client"
 	"time"
+
+	"gopkg.in/resty.v1"
 )
 
 type Auth struct {
 	ClientId     string
+	HTTPClient   http_client.RestyClient
 	ClientSecret string
 	Audience     string "https://spresso-api"
 	GrantType    string "client_credentials"
@@ -16,12 +19,36 @@ type Auth struct {
 	CreatedAt    time.Time "Time"
 }
 
-var (
-	auth = newAuth()
-)
+func NewAuth(clientId string, clientSecret string) {
+	return &Auth{
+		ClientId:          clientId,
+		ClientSecret:      clientSecret,
+		defaultRetryCount: retryCount,
+	}
+}
 
-func NewAuth(clientId string, clientSecret string, logger log.Logger, restyClient http_client.RestyClient) {
+func NewRestyClient(defaultTimeout *time.Duration, defaultRetryCount *int) RestyClient {
+	client := resty.New()
 
+	// use go-json for faster marshal/unmarshal
+	client.JSONMarshal = json.Marshal
+	client.JSONUnmarshal = json.Unmarshal
+
+	timeout := 10 * time.Second
+	if defaultTimeout != nil {
+		timeout = *defaultTimeout
+	}
+
+	retryCount := 0
+	if defaultRetryCount != nil {
+		retryCount = *defaultRetryCount
+	}
+
+	return &restyClient{
+		underlyingClient:  client,
+		defaultTimeout:    timeout,
+		defaultRetryCount: retryCount,
+	}
 }
 
 func RenewToken() bool {

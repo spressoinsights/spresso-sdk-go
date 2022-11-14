@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-
-	"github.com/spressoinsights/spresso-sdk-go/config"
 )
 
 // Spresso API.

@@ -4,9 +4,6 @@ import (
 	"context"
 	"time"
 
-	reqerrors "github.com/giddyinc/boxed-services/request_errors"
-	"github.com/giddyinc/boxed-services/services/datadog"
-	"github.com/giddyinc/boxed-services/utils/log"
 	"github.com/go-resty/resty/v2"
 	"github.com/goccy/go-json"
 )
@@ -71,9 +68,9 @@ type RestyRequest interface {
 	SetRetryCount(retryCount int) RestyRequest
 	SetTimeout(timeout time.Duration) RestyRequest
 
-	Get(url string) (*resty.Response, reqerrors.ExternalServiceRequestError)
-	Post(url string) (*resty.Response, reqerrors.ExternalServiceRequestError)
-	Put(url string) (*resty.Response, reqerrors.ExternalServiceRequestError)
+	Get(url string) (*resty.Response, error)
+	Post(url string) (*resty.Response, error)
+	Put(url string) (*resty.Response, error)
 }
 
 type restyRequest struct {
@@ -141,7 +138,6 @@ func (r *restyRequest) SetTimeout(timeout time.Duration) RestyRequest {
 }
 
 func (r *restyRequest) prepareRequest() (*resty.Request, context.CancelFunc) {
-	datadog.InjectSpan(r.ctx, r.underlyingReq.Header)
 
 	req := r.underlyingReq.AddRetryCondition(func(resp *resty.Response, err error) bool {
 		r.requestCount++
@@ -152,40 +148,30 @@ func (r *restyRequest) prepareRequest() (*resty.Request, context.CancelFunc) {
 	return req.SetContext(requestCtx), cancelFunc
 }
 
-func (r *restyRequest) parseResult(response *resty.Response, err error) (*resty.Response, reqerrors.ExternalServiceRequestError) {
+func (r *restyRequest) parseResult(response *resty.Response, err error) (*resty.Response, error) {
 	if err == nil && response.StatusCode() == r.successStatusCode {
-		if trackErr := datadog.ExternalServiceSuccess(r.serviceName); trackErr != nil {
-			log.Warnf("Error while sending external service metrics: %s", trackErr)
-		}
 
 		return response, nil
 	}
 
-	return nil, reqerrors.RestyExternalServiceError(
-		err,
-		r.serviceName,
-		response,
-		r.successStatusCode,
-		r.timeout,
-		r.maxRetries,
-	)
+	return nil, error
 }
 
-func (r *restyRequest) Get(url string) (*resty.Response, reqerrors.ExternalServiceRequestError) {
+func (r *restyRequest) Get(url string) (*resty.Response, error) {
 	req, cancel := r.prepareRequest()
 	defer cancel()
 
 	return r.parseResult(req.Get(url))
 }
 
-func (r *restyRequest) Post(url string) (*resty.Response, reqerrors.ExternalServiceRequestError) {
+func (r *restyRequest) Post(url string) (*resty.Response, error) {
 	req, cancel := r.prepareRequest()
 	defer cancel()
 
 	return r.parseResult(req.Post(url))
 }
 
-func (r *restyRequest) Put(url string) (*resty.Response, reqerrors.ExternalServiceRequestError) {
+func (r *restyRequest) Put(url string) (*resty.Response, error) {
 	req, cancel := r.prepareRequest()
 	defer cancel()
 
