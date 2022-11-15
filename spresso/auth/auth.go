@@ -2,37 +2,44 @@ package auth
 
 import (
 	"encoding/json"
+	"net/http"
 	"spresso-sdk-go/spresso/http_client"
 	"time"
 
 	"gopkg.in/resty.v1"
 )
 
-type Auth struct {
+type Context struct {
 	ClientId     string
-	HTTPClient   http_client.RestyClient
 	ClientSecret string
 	Audience     string "https://spresso-api"
 	GrantType    string "client_credentials"
+	AuthURL string "https://dev-369tg5rm.us.auth0.com/oauth/token"
 	Token        string "Bearer"
 	TTL          int
 	CreatedAt    time.Time "Time"
 }
 
-func NewAuth(clientId string, clientSecret string) {
-	return &Auth{
-		ClientId:          clientId,
-		ClientSecret:      clientSecret,
-		defaultRetryCount: retryCount,
+type AuthBody struct {
+	client_id     string
+	client_secret string
+	audience     string "https://spresso-api"
+	grantType    string "client_credentials"
+}
+type Client struct {
+	restyClient http.Client
+	context     Context
+}
+
+func NewContext(clientId string, clientSecret string) *Context {
+	return &Context{
+		ClientId:     clientId,
+		ClientSecret: clientSecret,
+		CreatedAt: time.Now,
 	}
 }
 
-func NewRestyClient(defaultTimeout *time.Duration, defaultRetryCount *int) RestyClient {
-	client := resty.New()
-
-	// use go-json for faster marshal/unmarshal
-	client.JSONMarshal = json.Marshal
-	client.JSONUnmarshal = json.Unmarshal
+func NewClient(clientId string, clientSecret string) Client {
 
 	timeout := 10 * time.Second
 	if defaultTimeout != nil {
@@ -44,23 +51,27 @@ func NewRestyClient(defaultTimeout *time.Duration, defaultRetryCount *int) Resty
 		retryCount = *defaultRetryCount
 	}
 
-	return &restyClient{
-		underlyingClient:  client,
-		defaultTimeout:    timeout,
-		defaultRetryCount: retryCount,
+	return &Client{
+		restyClient = http_client.NewRestyClient(1, 2),
+		context = Context{
+			ClientId:     clientId,
+			ClientSecret: clientSecret,
+			CreatedAt: time.Now,
+		}
 	}
 }
 
-func RenewToken() bool {
+func (c *Client) RenewToken() bool {
 	return true
 }
 
-func getToken() string {
-	return Auth.Token
-
+func (client *Client) getToken() string {
+	if(time.now().Sub(client.createdAt) == context.TTL)
+		return Auth.Token
 	return nil
 }
 
-func Authenticate() {
-
+func (c *Client) Authenticate() {
+	resp, err = c.restyClient.setbody(AuthBody{clinet_id = c.Context.ClientId, client_secret= c.Context.ClientSecret})ForceContentType("application/json").Post(c.Context.AuthURL)
+	c.Token = resp.Body.get('access_token')
 }
