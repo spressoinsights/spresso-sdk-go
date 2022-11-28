@@ -149,12 +149,12 @@ func (r *restyRequest) prepareRequest() (*resty.Request, context.CancelFunc) {
 }
 
 func (r *restyRequest) parseResult(response *resty.Response, err error) (*resty.Response, error) {
-	if err == nil && response.StatusCode() == r.successStatusCode {
+	if err == nil {
 
 		return response, nil
 	}
 
-	return nil, error
+	return nil, nil
 }
 
 func (r *restyRequest) Get(url string) (*resty.Response, error) {

@@ -1,77 +1,77 @@
 package auth
 
 import (
-	"encoding/json"
-	"net/http"
-	"spresso-sdk-go/spresso/http_client"
+	"context"
 	"time"
 
-	"gopkg.in/resty.v1"
+	"spresso-sdk-go/spresso/http_client"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/goccy/go-json"
 )
 
-type Context struct {
-	ClientId     string
-	ClientSecret string
+type AuthClient struct {
+	restyRequest http_client.RestyRequest
+	clientId     string
+	clientSecret string
 	Audience     string "https://spresso-api"
 	GrantType    string "client_credentials"
-	AuthURL string "https://dev-369tg5rm.us.auth0.com/oauth/token"
+	AuthURL      string "https://dev-369tg5rm.us.auth0.com/oauth/token"
 	Token        string "Bearer"
 	TTL          int
 	CreatedAt    time.Time "Time"
 }
 
 type AuthBody struct {
-	client_id     string
-	client_secret string
-	audience     string "https://spresso-api"
-	grantType    string "client_credentials"
-}
-type Client struct {
-	restyClient http.Client
-	context     Context
+	Client_id     string `json:"client_id"`
+	Client_secret string `json:"client_secret"`
+	Audience      string `json:"audience"`
+	GrantType     string `json:"grant_type"`
 }
 
-func NewContext(clientId string, clientSecret string) *Context {
-	return &Context{
-		ClientId:     clientId,
-		ClientSecret: clientSecret,
-		CreatedAt: time.Now,
+type AuthResponse struct {
+	access_token string
+	scope        string
+	expires_in   int
+	token_type   string
+}
+
+func NewAuthClient(clientId string, clientSecret string) *AuthClient {
+	return &AuthClient{
+
+		restyRequest: http_client.NewRestyClient(nil, nil).R(context.TODO(), "Auth", 200),
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		CreatedAt:    time.Now(),
+		Audience:     `https://spresso-api`,
+		GrantType:    `client_credentials`,
+		AuthURL:      `https://dev-369tg5rm.us.auth0.com/oauth/token`,
 	}
 }
 
-func NewClient(clientId string, clientSecret string) Client {
-
-	timeout := 10 * time.Second
-	if defaultTimeout != nil {
-		timeout = *defaultTimeout
+func (c *AuthClient) RenewToken() bool {
+	resp, err := c.Authenticate()
+	if err == nil && resp.StatusCode() == 200 {
+		return true
 	}
-
-	retryCount := 0
-	if defaultRetryCount != nil {
-		retryCount = *defaultRetryCount
-	}
-
-	return &Client{
-		restyClient = http_client.NewRestyClient(1, 2),
-		context = Context{
-			ClientId:     clientId,
-			ClientSecret: clientSecret,
-			CreatedAt: time.Now,
-		}
-	}
+	return false
 }
 
-func (c *Client) RenewToken() bool {
-	return true
+func (c *AuthClient) getToken() string {
+	if int(time.Now().Sub(c.CreatedAt).Seconds()) < c.TTL {
+		return c.Token
+	}
+	return ""
 }
 
-func (client *Client) getToken() string {
-	if(time.now().Sub(client.createdAt) == context.TTL)
-		return Auth.Token
-	return nil
-}
+func (c *AuthClient) Authenticate() (*resty.Response, error) {
+	body, err := json.Marshal(&AuthBody{c.clientId, c.clientSecret, c.Audience, c.GrantType})
 
-func (c *Client) Authenticate() {
-	resp, err = c.restyClient.setbody(AuthBody{clinet_id = c.Context.ClientId, client_secret= c.Context.ClientSecret})ForceContentType("application/json").Post(c.Context.AuthURL)
-	c.Token = resp.Body.get('access_token')
+	resp, err := c.restyRequest.SetHeader("Content-type", "application/json").
+		SetResult(AuthResponse{}).
+		SetBody(body).Post(c.AuthURL)
+	if err != nil && resp.StatusCode() == 200 {
+		c.Token = resp.Result().(*AuthResponse).access_token
+	}
+	return resp, err
 }

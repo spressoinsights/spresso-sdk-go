@@ -1,10 +1,12 @@
 package spresso
 
 import (
-	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
+
+	"spresso-sdk-go/spresso/auth"
+	"spresso-sdk-go/spresso/http_client"
 )
 
 // Spresso API.
@@ -14,30 +16,21 @@ const API = "https://spresso-api"
 const Client_Credential = "client_credentials"
 
 type Client struct {
-	config Config
-	id     string
-	secret string
+	config      Config
+	restyClient http_client.RestyClient
+	auth        *auth.AuthClient
 }
 
 // Config represents the configuration used to initialize an Client.
 type Config struct {
-	Environment string
-	OrgId       string
-	Service     string
+	Environment  string
+	OrgId        string
+	Service      string
+	clientId     string
+	clientSecret string
 }
 
-// Auth returns an instance of auth.Client.
-func (c *Client) Auth(ctx context.Context) (*auth.Client, error) {
-	conf := &config.AuthConfig{
-		ClientId:     c.id,
-		ClientSecret: c.secret,
-		Audience:     API,
-		GrantType:    Client_Credential,
-	}
-	return auth.NewClient(ctx, conf)
-}
-
-func NewClient(ctx context.Context, config *Config) (*Client, error) {
+func NewClient(config *Config) (*Client, error) {
 	if config == nil {
 		var err error
 		if config, err = getConfigDefaults(); err != nil {
@@ -45,23 +38,14 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 		}
 	}
 
-	pid := getProjectID(ctx, config, o...)
-	ao := defaultAuthOverrides
-	if config.AuthOverride != nil {
-		ao = *config.AuthOverride
-	}
-
 	return &Client{
-		authOverride:     ao,
-		dbURL:            config.DatabaseURL,
-		projectID:        pid,
-		serviceAccountID: config.ServiceAccountID,
-		storageBucket:    config.StorageBucket,
-		opts:             o,
+		config:      *config,
+		auth:        auth.NewAuthClient(config.clientId, config.clientSecret),
+		restyClient: http_client.NewRestyClient(nil, nil),
 	}, nil
 }
 
-// getConfigDefaults reads the default config file, defined by the FIREBASE_CONFIG
+// getConfigDefaults reads the default config file, defined by the config file
 // env variable, used only when options are nil.
 func getConfigDefaults() (*Config, error) {
 	fbc := &Config{}
