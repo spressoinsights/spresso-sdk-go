@@ -1,8 +1,10 @@
 package spresso
 
 import (
+	"context"
 	"spresso-sdk-go/spresso/auth"
 	"spresso-sdk-go/spresso/http_client"
+	"spresso-sdk-go/spresso/request"
 )
 
 // Spresso API.
@@ -12,9 +14,9 @@ const API = "https://spresso-api"
 const Client_Credential = "client_credentials"
 
 type Client struct {
-	config      Config
-	restyClient http_client.RestyClient
-	auth        *auth.AuthClient
+	config       Config
+	restyRequest http_client.RestyRequest
+	auth         *auth.AuthClient
 }
 
 // Config represents the configuration used to initialize an Client.
@@ -34,46 +36,17 @@ func NewClient(config *Config) (*Client, error) {
 			return nil, err
 		}
 	}
+	ctx := context.TODO()
+	resty := http_client.NewRestyClient(nil, nil).R(ctx, "SpressoClient", 200)
 
 	return &Client{
-		config:      *config,
-		auth:        auth.NewAuthClient(config.clientId, config.clientSecret),
-		restyClient: http_client.NewRestyClient(nil, nil),
+		config:       *config,
+		auth:         auth.NewAuthClient(config.clientId, config.clientSecret),
+		restyRequest: resty,
 	}, nil
 }
 
-// getConfigDefaults reads the default config file, defined by the config file
-// env variable, used only when options are nil.
 func getConfigDefaults() (*Config, error) {
-	// fbc := &Config{}
-	// confFileName := os.Getenv("")
-	// if confFileName == "" {
-	// 	return fbc, nil
-	// }
-	// var dat []byte
-	// if confFileName[0] == byte('{') {
-	// 	dat = []byte(confFileName)
-	// } else {
-	// 	var err error
-	// 	if dat, err = ioutil.ReadFile(confFileName); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-	// if err := json.Unmarshal(dat, fbc); err != nil {
-	// 	return nil, err
-	// }
-
-	// // Some special handling necessary for db auth overrides
-	// var m map[string]interface{}
-	// if err := json.Unmarshal(dat, &m); err != nil {
-	// 	return nil, err
-	// }
-	// if ao, ok := m["databaseAuthVariableOverride"]; ok && ao == nil {
-	// 	// Auth overrides are explicitly set to null
-	// 	var nullMap map[string]interface{}
-	// 	fbc.AuthOverride = &nullMap
-	// }
-	// return fbc, nil
 
 	return &Config{
 		Environment:  "Staging",
@@ -83,4 +56,13 @@ func getConfigDefaults() (*Config, error) {
 		clientSecret: "",
 		url:          "",
 	}, nil
+}
+
+func (c *Client) prepareRequest(config Config) http_client.RestyRequest {
+	return c.restyRequest.SetHeader("Authorization", c.auth.Token).
+		SetHeader("Accept", "application/json")
+}
+
+func (c *Client) PriceOptimization() request.PriceOptimizationRequest {
+	return request.PriceOptimization(c.prepareRequest(c.config), c.config.url)
 }
