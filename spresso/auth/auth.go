@@ -1,66 +1,77 @@
 package auth
 
 import (
-	"encoding/json"
-	"spresso-sdk-go/spresso/http_client"
+	"context"
 	"time"
 
-	"gopkg.in/resty.v1"
+	"spresso-sdk-go/spresso/http_client"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/goccy/go-json"
 )
 
-type Auth struct {
-	ClientId     string
-	HTTPClient   http_client.RestyClient
-	ClientSecret string
+type AuthClient struct {
+	restyRequest http_client.RestyRequest
+	clientId     string
+	clientSecret string
 	Audience     string "https://spresso-api"
 	GrantType    string "client_credentials"
+	AuthURL      string "https://dev-369tg5rm.us.auth0.com/oauth/token"
 	Token        string "Bearer"
 	TTL          int
 	CreatedAt    time.Time "Time"
 }
 
-func NewAuth(clientId string, clientSecret string) {
-	return &Auth{
-		ClientId:          clientId,
-		ClientSecret:      clientSecret,
-		defaultRetryCount: retryCount,
+type AuthBody struct {
+	Client_id     string `json:"client_id"`
+	Client_secret string `json:"client_secret"`
+	Audience      string `json:"audience"`
+	GrantType     string `json:"grant_type"`
+}
+
+type AuthResponse struct {
+	access_token string
+	scope        string
+	expires_in   int
+	token_type   string
+}
+
+func NewAuthClient(clientId string, clientSecret string) *AuthClient {
+	return &AuthClient{
+
+		restyRequest: http_client.NewRestyClient(nil, nil).R(context.TODO(), "Auth", 200),
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		CreatedAt:    time.Now(),
+		Audience:     `https://spresso-api`,
+		GrantType:    `client_credentials`,
+		AuthURL:      `https://dev-369tg5rm.us.auth0.com/oauth/token`,
 	}
 }
 
-func NewRestyClient(defaultTimeout *time.Duration, defaultRetryCount *int) RestyClient {
-	client := resty.New()
-
-	// use go-json for faster marshal/unmarshal
-	client.JSONMarshal = json.Marshal
-	client.JSONUnmarshal = json.Unmarshal
-
-	timeout := 10 * time.Second
-	if defaultTimeout != nil {
-		timeout = *defaultTimeout
+func (c *AuthClient) RenewToken() bool {
+	resp, err := c.Authenticate()
+	if err == nil && resp.StatusCode() == 200 {
+		return true
 	}
-
-	retryCount := 0
-	if defaultRetryCount != nil {
-		retryCount = *defaultRetryCount
-	}
-
-	return &restyClient{
-		underlyingClient:  client,
-		defaultTimeout:    timeout,
-		defaultRetryCount: retryCount,
-	}
+	return false
 }
 
-func RenewToken() bool {
-	return true
+func (c *AuthClient) getToken() string {
+	if int(time.Now().Sub(c.CreatedAt).Seconds()) < c.TTL {
+		return c.Token
+	}
+	return ""
 }
 
-func getToken() string {
-	return Auth.Token
+func (c *AuthClient) Authenticate() (*resty.Response, error) {
+	body, err := json.Marshal(&AuthBody{c.clientId, c.clientSecret, c.Audience, c.GrantType})
 
-	return nil
-}
-
-func Authenticate() {
-
+	resp, err := c.restyRequest.SetHeader("Content-type", "application/json").
+		SetResult(AuthResponse{}).
+		SetBody(body).Post(c.AuthURL)
+	if err != nil && resp.StatusCode() == 200 {
+		c.Token = resp.Result().(*AuthResponse).access_token
+	}
+	return resp, err
 }

@@ -2,9 +2,9 @@ package spresso
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
-	"os"
+	"spresso-sdk-go/spresso/auth"
+	"spresso-sdk-go/spresso/http_client"
+	"spresso-sdk-go/spresso/request"
 )
 
 // Spresso API.
@@ -14,83 +14,55 @@ const API = "https://spresso-api"
 const Client_Credential = "client_credentials"
 
 type Client struct {
-	config Config
-	id     string
-	secret string
+	config       Config
+	restyRequest http_client.RestyRequest
+	auth         *auth.AuthClient
 }
 
 // Config represents the configuration used to initialize an Client.
 type Config struct {
-	Environment string
-	OrgId       string
-	Service     string
+	Environment  string
+	OrgId        string
+	Service      string
+	clientId     string
+	clientSecret string
+	url          string
 }
 
-// Auth returns an instance of auth.Client.
-func (c *Client) Auth(ctx context.Context) (*auth.Client, error) {
-	conf := &config.AuthConfig{
-		ClientId:     c.id,
-		ClientSecret: c.secret,
-		Audience:     API,
-		GrantType:    Client_Credential,
-	}
-	return auth.NewClient(ctx, conf)
-}
-
-func NewClient(ctx context.Context, config *Config) (*Client, error) {
+func NewClient(config *Config) (*Client, error) {
 	if config == nil {
 		var err error
 		if config, err = getConfigDefaults(); err != nil {
 			return nil, err
 		}
 	}
-
-	pid := getProjectID(ctx, config, o...)
-	ao := defaultAuthOverrides
-	if config.AuthOverride != nil {
-		ao = *config.AuthOverride
-	}
+	ctx := context.TODO()
+	resty := http_client.NewRestyClient(nil, nil).R(ctx, "SpressoClient", 200)
 
 	return &Client{
-		authOverride:     ao,
-		dbURL:            config.DatabaseURL,
-		projectID:        pid,
-		serviceAccountID: config.ServiceAccountID,
-		storageBucket:    config.StorageBucket,
-		opts:             o,
+		config:       *config,
+		auth:         auth.NewAuthClient(config.clientId, config.clientSecret),
+		restyRequest: resty,
 	}, nil
 }
 
-// getConfigDefaults reads the default config file, defined by the FIREBASE_CONFIG
-// env variable, used only when options are nil.
 func getConfigDefaults() (*Config, error) {
-	fbc := &Config{}
-	confFileName := os.Getenv(spressoEnvName)
-	if confFileName == "" {
-		return fbc, nil
-	}
-	var dat []byte
-	if confFileName[0] == byte('{') {
-		dat = []byte(confFileName)
-	} else {
-		var err error
-		if dat, err = ioutil.ReadFile(confFileName); err != nil {
-			return nil, err
-		}
-	}
-	if err := json.Unmarshal(dat, fbc); err != nil {
-		return nil, err
-	}
 
-	// Some special handling necessary for db auth overrides
-	var m map[string]interface{}
-	if err := json.Unmarshal(dat, &m); err != nil {
-		return nil, err
-	}
-	if ao, ok := m["databaseAuthVariableOverride"]; ok && ao == nil {
-		// Auth overrides are explicitly set to null
-		var nullMap map[string]interface{}
-		fbc.AuthOverride = &nullMap
-	}
-	return fbc, nil
+	return &Config{
+		Environment:  "Staging",
+		OrgId:        "BOXED",
+		Service:      "POC",
+		clientId:     "",
+		clientSecret: "",
+		url:          "",
+	}, nil
+}
+
+func (c *Client) prepareRequest(config Config) http_client.RestyRequest {
+	return c.restyRequest.SetHeader("Authorization", c.auth.Token).
+		SetHeader("Accept", "application/json")
+}
+
+func (c *Client) PriceOptimization() request.PriceOptimizationRequest {
+	return request.PriceOptimization(c.prepareRequest(c.config), c.config.url)
 }
