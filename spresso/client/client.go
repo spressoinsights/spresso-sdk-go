@@ -2,9 +2,10 @@ package client
 
 import (
 	"context"
-	"spresso-sdk-go/spresso/auth"
-	"spresso-sdk-go/spresso/http_client"
-	"spresso-sdk-go/spresso/request"
+
+	"github.com/spressoinsights/spresso-sdk-go/spresso/auth"
+	"github.com/spressoinsights/spresso-sdk-go/spresso/http_client"
+	"github.com/spressoinsights/spresso-sdk-go/spresso/request"
 )
 
 // Spresso API.

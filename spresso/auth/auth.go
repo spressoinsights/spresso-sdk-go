@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"spresso-sdk-go/spresso/http_client"
+	"github.com/spressoinsights/spresso-sdk-go/spresso/http_client"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/goccy/go-json"

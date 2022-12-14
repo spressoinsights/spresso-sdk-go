@@ -1,8 +1,9 @@
 package request
 
 import (
-	"spresso-sdk-go/spresso/http_client"
 	"strconv"
+
+	"github.com/spressoinsights/spresso-sdk-go/spresso/http_client"
 )
 
 type PriceOptimizationRequestData struct {
