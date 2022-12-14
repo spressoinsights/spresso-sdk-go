@@ -10,7 +10,12 @@ import (
 	"github.com/goccy/go-json"
 )
 
-type AuthClient struct {
+type AuthClient interface {
+	RenewToken() bool
+	GetToken() string
+	Authenticate() (*resty.Response, error)
+}
+type authClient struct {
 	restyRequest http_client.RestyRequest
 	clientId     string
 	clientSecret string
@@ -30,15 +35,14 @@ type AuthBody struct {
 }
 
 type AuthResponse struct {
-	access_token string
-	scope        string
-	expires_in   int
-	token_type   string
+	Access_token string `json:"access_token"`
+	Scope        string `json:"scope"`
+	Expires_in   int    `json:"expires_in"`
+	Token_type   string `json:"token_type"`
 }
 
-func NewAuthClient(clientId string, clientSecret string) *AuthClient {
-	return &AuthClient{
-
+func NewAuthClient(clientId string, clientSecret string) AuthClient {
+	return &authClient{
 		restyRequest: http_client.NewRestyClient(nil, nil).R(context.TODO(), "Auth", 200),
 		clientId:     clientId,
 		clientSecret: clientSecret,
@@ -49,7 +53,7 @@ func NewAuthClient(clientId string, clientSecret string) *AuthClient {
 	}
 }
 
-func (c *AuthClient) RenewToken() bool {
+func (c *authClient) RenewToken() bool {
 	resp, err := c.Authenticate()
 	if err == nil && resp.StatusCode() == 200 {
 		return true
@@ -57,21 +61,22 @@ func (c *AuthClient) RenewToken() bool {
 	return false
 }
 
-func (c *AuthClient) getToken() string {
+func (c *authClient) GetToken() string {
 	if int(time.Now().Sub(c.CreatedAt).Seconds()) < c.TTL {
-		return c.Token
+		return "Bearer " + c.Token
 	}
-	return ""
+	return "Expired Token"
 }
 
-func (c *AuthClient) Authenticate() (*resty.Response, error) {
+func (c *authClient) Authenticate() (*resty.Response, error) {
 	body, err := json.Marshal(&AuthBody{c.clientId, c.clientSecret, c.Audience, c.GrantType})
-
 	resp, err := c.restyRequest.SetHeader("Content-type", "application/json").
 		SetResult(AuthResponse{}).
 		SetBody(body).Post(c.AuthURL)
-	if err != nil && resp.StatusCode() == 200 {
-		c.Token = resp.Result().(*AuthResponse).access_token
+	if err == nil && resp.StatusCode() == 200 {
+		c.Token = resp.Result().(*AuthResponse).Access_token
+		c.TTL = resp.Result().(*AuthResponse).Expires_in
+		c.CreatedAt = time.Now()
 	}
 	return resp, err
 }
