@@ -1,4 +1,4 @@
-module spresso-sdk-go
+module github.com/spressoinsights/spresso-sdk-go
 
 go 1.17
 
