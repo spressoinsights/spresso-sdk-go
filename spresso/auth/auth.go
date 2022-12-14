@@ -43,7 +43,6 @@ type AuthResponse struct {
 
 func NewAuthClient(clientId string, clientSecret string) AuthClient {
 	return &authClient{
-
 		restyRequest: http_client.NewRestyClient(nil, nil).R(context.TODO(), "Auth", 200),
 		clientId:     clientId,
 		clientSecret: clientSecret,
